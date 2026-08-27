@@ -1,0 +1,102 @@
+[
+  {
+    "destination": "DAD",
+    "name": "My Khe Demo Hotel",
+    "area": "Mỹ Khê",
+    "rating": 4.4,
+    "stars": 4,
+    "nightly_price": 1100000,
+    "amenities": ["near beach", "breakfast", "pool"]
+  },
+  {
+    "destination": "DAD",
+    "name": "Han River Demo Stay",
+    "area": "Hải Châu",
+    "rating": 4.2,
+    "stars": 3,
+    "nightly_price": 780000,
+    "amenities": ["city center", "breakfast"]
+  },
+  {
+    "destination": "DAD",
+    "name": "Son Tra Demo Residence",
+    "area": "Sơn Trà",
+    "rating": 4.6,
+    "stars": 4,
+    "nightly_price": 1350000,
+    "amenities": ["quiet", "near beach", "pool"]
+  },
+  {
+    "destination": "PQC",
+    "name": "Duong Dong Demo Hotel",
+    "area": "Dương Đông",
+    "rating": 4.3,
+    "stars": 3,
+    "nightly_price": 950000,
+    "amenities": ["night market", "breakfast"]
+  },
+  {
+    "destination": "PQC",
+    "name": "Long Beach Demo Resort",
+    "area": "Bãi Trường",
+    "rating": 4.5,
+    "stars": 4,
+    "nightly_price": 1450000,
+    "amenities": ["near beach", "pool"]
+  },
+  {
+    "destination": "NRT",
+    "name": "Shinjuku Demo Hotel",
+    "area": "Shinjuku",
+    "rating": 4.4,
+    "stars": 4,
+    "nightly_price": 2850000,
+    "amenities": ["near station", "breakfast"]
+  },
+  {
+    "destination": "NRT",
+    "name": "Asakusa Demo Stay",
+    "area": "Asakusa",
+    "rating": 4.3,
+    "stars": 3,
+    "nightly_price": 2200000,
+    "amenities": ["traditional area", "near metro"]
+  },
+  {
+    "destination": "NRT",
+    "name": "Ueno Demo Residence",
+    "area": "Ueno",
+    "rating": 4.1,
+    "stars": 3,
+    "nightly_price": 1950000,
+    "amenities": ["near station", "family room"]
+  },
+  {
+    "destination": "ANY",
+    "name": "Central Demo Hotel",
+    "area": "City Center",
+    "rating": 4.2,
+    "stars": 3,
+    "nightly_price": 1200000,
+    "amenities": ["central", "breakfast"]
+  },
+  {
+    "destination": "ANY",
+    "name": "Budget Demo Stay",
+    "area": "Transit District",
+    "rating": 4.0,
+    "stars": 3,
+    "nightly_price": 850000,
+    "amenities": ["public transport"]
+  },
+  {
+    "destination": "ANY",
+    "name": "Comfort Demo Hotel",
+    "area": "Popular District",
+    "rating": 4.5,
+    "stars": 4,
+    "nightly_price": 1650000,
+    "amenities": ["breakfast", "pool"]
+  }
+]
+

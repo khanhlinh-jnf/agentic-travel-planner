@@ -1,0 +1,113 @@
+[
+  {
+    "route": "SGN-DAD",
+    "airline": "Vietnam Airlines",
+    "flight_number": "VN-D01",
+    "departure_time": "09:20",
+    "arrival_time": "10:45",
+    "duration_minutes": 85,
+    "stops": 0,
+    "price_per_person": 1650000
+  },
+  {
+    "route": "SGN-DAD",
+    "airline": "Vietjet Air",
+    "flight_number": "VJ-D02",
+    "departure_time": "11:10",
+    "arrival_time": "12:35",
+    "duration_minutes": 85,
+    "stops": 0,
+    "price_per_person": 1320000
+  },
+  {
+    "route": "SGN-DAD",
+    "airline": "Bamboo Airways",
+    "flight_number": "QH-D03",
+    "departure_time": "14:30",
+    "arrival_time": "15:55",
+    "duration_minutes": 85,
+    "stops": 0,
+    "price_per_person": 1480000
+  },
+  {
+    "route": "SGN-PQC",
+    "airline": "Vietnam Airlines",
+    "flight_number": "VN-P01",
+    "departure_time": "08:45",
+    "arrival_time": "09:50",
+    "duration_minutes": 65,
+    "stops": 0,
+    "price_per_person": 1750000
+  },
+  {
+    "route": "SGN-PQC",
+    "airline": "Vietjet Air",
+    "flight_number": "VJ-P02",
+    "departure_time": "12:15",
+    "arrival_time": "13:20",
+    "duration_minutes": 65,
+    "stops": 0,
+    "price_per_person": 1390000
+  },
+  {
+    "route": "SGN-NRT",
+    "airline": "Vietnam Airlines",
+    "flight_number": "VN-T01",
+    "departure_time": "09:00",
+    "arrival_time": "16:45",
+    "duration_minutes": 345,
+    "stops": 0,
+    "price_per_person": 8900000
+  },
+  {
+    "route": "SGN-NRT",
+    "airline": "ANA",
+    "flight_number": "NH-T02",
+    "departure_time": "07:30",
+    "arrival_time": "15:15",
+    "duration_minutes": 345,
+    "stops": 0,
+    "price_per_person": 10400000
+  },
+  {
+    "route": "SGN-NRT",
+    "airline": "Vietjet Air",
+    "flight_number": "VJ-T03",
+    "departure_time": "00:30",
+    "arrival_time": "08:00",
+    "duration_minutes": 330,
+    "stops": 0,
+    "price_per_person": 6500000
+  },
+  {
+    "route": "ANY",
+    "airline": "Demo Air",
+    "flight_number": null,
+    "departure_time": "10:00",
+    "arrival_time": null,
+    "duration_minutes": null,
+    "stops": 0,
+    "price_per_person": 2200000
+  },
+  {
+    "route": "ANY",
+    "airline": "Budget Demo Air",
+    "flight_number": null,
+    "departure_time": "13:30",
+    "arrival_time": null,
+    "duration_minutes": null,
+    "stops": 1,
+    "price_per_person": 1700000
+  },
+  {
+    "route": "ANY",
+    "airline": "Comfort Demo Air",
+    "flight_number": null,
+    "departure_time": "16:00",
+    "arrival_time": null,
+    "duration_minutes": null,
+    "stops": 0,
+    "price_per_person": 2800000
+  }
+]
+

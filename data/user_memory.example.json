@@ -1,0 +1,10 @@
+{
+  "demo-user": {
+    "avoid_early_flights": true,
+    "preferred_departure_after": "08:00:00",
+    "travel_pace": "relaxed",
+    "preferred_hotel_area": null,
+    "preferred_min_stars": 3
+  }
+}
+
