@@ -24,7 +24,7 @@ class HotelPreferences(StrictModel):
     max_nightly_price: int | None = Field(default=None, ge=0)
     preferred_area: str | None = None
     min_stars: int | None = Field(default=None, ge=1, le=5)
-    min_rating: float | None = Field(default=None, ge=0, le=5)
+    min_rating: float | None = Field(default=None, ge=0, le=10)
 
 
 class TripRequest(StrictModel):
@@ -59,6 +59,29 @@ class TripRequestPatch(StrictModel):
     date_is_ambiguous: bool = False
 
 
+class FlightSegment(StrictModel):
+    airline: str
+    flight_number: str | None = None
+    origin_airport: str
+    origin_airport_name: str | None = None
+    destination_airport: str
+    destination_airport_name: str | None = None
+    departure_at: datetime
+    arrival_at: datetime
+    duration_minutes: int | None = Field(default=None, ge=0)
+    aircraft: str | None = None
+    travel_class: str | None = None
+
+
+class FlightLeg(StrictModel):
+    direction: Literal["outbound", "return"]
+    segments: list[FlightSegment] = Field(default_factory=list)
+    duration_minutes: int | None = Field(default=None, ge=0)
+    stops: int | None = Field(default=None, ge=0)
+    price_per_person: int | None = Field(default=None, ge=0)
+    total_price: int | None = Field(default=None, ge=0)
+
+
 class FlightOption(StrictModel):
     id: str
     airline: str
@@ -74,10 +97,17 @@ class FlightOption(StrictModel):
     price_per_person: int = Field(ge=0)
     total_price: int = Field(ge=0)
     currency: Literal["VND"] = "VND"
-    source: Literal["web", "mock"]
+    source: Literal["serpapi", "mock"]
     source_url: str | None = None
     observed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     is_estimate: bool = True
+    booking_token: str | None = Field(default=None, exclude=True, repr=False)
+    departure_token: str | None = Field(default=None, exclude=True, repr=False)
+    carbon_emissions_grams: int | None = Field(default=None, ge=0)
+    outbound_leg: FlightLeg | None = None
+    return_leg: FlightLeg | None = None
+    price_scope: Literal["one_way", "round_trip"] = "one_way"
+    price_note: str | None = None
 
 
 class HotelOption(StrictModel):
@@ -85,31 +115,91 @@ class HotelOption(StrictModel):
     name: str
     destination: str
     area: str | None = None
-    rating: float | None = Field(default=None, ge=0, le=5)
+    rating: float | None = Field(default=None, ge=0, le=10)
     stars: int | None = Field(default=None, ge=1, le=5)
     nightly_price: int = Field(ge=0)
     nights: int = Field(ge=1)
     total_price: int = Field(ge=0)
     currency: Literal["VND"] = "VND"
     amenities: list[str] = Field(default_factory=list)
-    source: Literal["web", "mock"]
+    room_type: str | None = None
+    review_count: int | None = Field(default=None, ge=0)
+    source: Literal["booking", "mock"]
     source_url: str | None = None
+    image_url: str | None = None
     observed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     is_estimate: bool = True
 
 
+class HotelStay(StrictModel):
+    check_in_date: date
+    check_out_date: date
+    hotel: HotelOption
+    nights: int = Field(ge=1)
+    total_price: int = Field(ge=0)
+
+
+class PlaceOption(StrictModel):
+    id: str
+    name: str
+    category: str | None = None
+    address: str | None = None
+    rating: float | None = Field(default=None, ge=0, le=5)
+    review_count: int | None = Field(default=None, ge=0)
+    price_level: str | None = None
+    source: Literal["serpapi", "mock"]
+    source_url: str | None = None
+    image_url: str | None = None
+    observed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
 class FlightSearchResult(StrictModel):
-    source: Literal["web", "mock"]
+    source: Literal["serpapi", "mock"]
     warning: str | None = None
     results: list[FlightOption] = Field(default_factory=list)
     provider_call_count: int = Field(default=0, ge=0)
 
 
 class HotelSearchResult(StrictModel):
-    source: Literal["web", "mock"]
+    source: Literal["booking", "mock"]
     warning: str | None = None
     results: list[HotelOption] = Field(default_factory=list)
     provider_call_count: int = Field(default=0, ge=0)
+
+
+class PlaceSearchResult(StrictModel):
+    source: Literal["serpapi", "mock"]
+    warning: str | None = None
+    results: list[PlaceOption] = Field(default_factory=list)
+    provider_call_count: int = Field(default=0, ge=0)
+
+
+class FlightBookingOffer(StrictModel):
+    seller: str
+    price: int | None = Field(default=None, ge=0)
+    currency: str = "VND"
+    marketed_as: list[str] = Field(default_factory=list)
+    baggage: list[str] = Field(default_factory=list)
+    is_airline: bool = False
+    booking_url: str | None = None
+    requires_provider_form: bool = False
+    direction: Literal["round_trip", "outbound", "return"] = "round_trip"
+
+
+class FlightBookingOptionsResult(StrictModel):
+    source: Literal["serpapi", "mock"]
+    warning: str | None = None
+    results: list[FlightBookingOffer] = Field(default_factory=list)
+    provider_call_count: int = Field(default=0, ge=0)
+    observed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class HotelDetailResult(StrictModel):
+    source: Literal["booking", "mock"]
+    warning: str | None = None
+    hotel: HotelOption | None = None
+    provider_call_count: int = Field(default=0, ge=0)
+    observed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class ItineraryActivity(StrictModel):
@@ -118,6 +208,13 @@ class ItineraryActivity(StrictModel):
     description: str
     estimated_cost_per_person: int = Field(default=0, ge=0)
     needs_verification: bool = False
+    place_name: str | None = None
+    address: str | None = None
+    rating: float | None = Field(default=None, ge=0, le=5)
+    review_count: int | None = Field(default=None, ge=0)
+    maps_url: str | None = None
+    place_source: Literal["serpapi", "mock"] | None = None
+    image_url: str | None = None
 
 
 class ItineraryDay(StrictModel):
@@ -133,6 +230,17 @@ class PlanNarrative(StrictModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class BudgetLineItem(StrictModel):
+    category: Literal[
+        "flight", "hotel", "activities", "food", "local_transport", "buffer"
+    ]
+    label: str
+    quantity: int = Field(default=1, ge=1)
+    unit_price: int = Field(ge=0)
+    total: int = Field(ge=0)
+    note: str | None = None
+
+
 class BudgetSummary(StrictModel):
     flight: int
     hotel: int
@@ -145,6 +253,8 @@ class BudgetSummary(StrictModel):
     remaining_budget: int
     is_over_budget: bool
     currency: Literal["VND"] = "VND"
+    buffer_rate: float = Field(default=0.05, ge=0, le=1)
+    line_items: list[BudgetLineItem] = Field(default_factory=list)
 
 
 class TripPlan(StrictModel):
@@ -154,6 +264,8 @@ class TripPlan(StrictModel):
     alternative_flights: list[FlightOption] = Field(default_factory=list)
     recommended_hotel: HotelOption
     alternative_hotels: list[HotelOption] = Field(default_factory=list)
+    hotel_stays: list[HotelStay] = Field(default_factory=list)
+    places: list[PlaceOption] = Field(default_factory=list)
     itinerary: list[ItineraryDay]
     budget: BudgetSummary
     rationale: str
@@ -181,7 +293,6 @@ class WorkflowMetrics(StrictModel):
     mcp_calls: int = 0
     external_search_calls: int = 0
     handoffs: int = 0
-    supervisor_steps: int = 0
     revisions: int = 0
 
 
@@ -191,4 +302,3 @@ class UserPreferences(StrictModel):
     travel_pace: Literal["relaxed", "balanced", "packed"] | None = None
     preferred_hotel_area: str | None = None
     preferred_min_stars: int | None = Field(default=None, ge=1, le=5)
-

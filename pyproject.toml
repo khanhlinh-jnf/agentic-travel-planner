@@ -1,7 +1,7 @@
 [project]
 name = "agentic-travel-planner"
 version = "0.1.0"
-description = "A LangGraph multi-agent travel planning capstone with HITL, MCP, memory, and selective replanning."
+description = "A Swarm-first LangGraph travel planner with HITL, MCP, memory, and selective replanning."
 requires-python = ">=3.11"
 
 [tool.pytest.ini_options]
@@ -14,4 +14,3 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
-

@@ -30,6 +30,7 @@ ITINERARY_FIELDS = {
     "travel_pace",
     "free_text_constraints",
 }
+PLACE_FIELDS = {"destination", "interests"}
 
 
 def apply_revision(
@@ -45,6 +46,7 @@ def apply_revision(
     flight_stale = bool(changed & FLIGHT_FIELDS or "flight" in domains)
     hotel_stale = bool(changed & HOTEL_FIELDS or "hotel" in domains)
     itinerary_stale = bool(changed & ITINERARY_FIELDS or "itinerary" in domains)
+    place_stale = bool(changed & PLACE_FIELDS or "itinerary" in domains)
 
     if intent.preserve_flight:
         flight_stale = False
@@ -55,10 +57,11 @@ def apply_revision(
         flight_stale = current_plan_over_budget and not intent.preserve_flight
         hotel_stale = current_plan_over_budget and not intent.preserve_hotel
         itinerary_stale = True
+        place_stale = False
 
     return request, {
         "flight_search_stale": flight_stale,
         "hotel_search_stale": hotel_stale,
+        "place_search_stale": place_stale,
         "itinerary_stale": itinerary_stale or flight_stale or hotel_stale,
     }
-

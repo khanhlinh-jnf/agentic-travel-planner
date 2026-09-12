@@ -1,13 +1,14 @@
-"""Flight and Hotel specialist logic shared by hierarchy and revision swarm."""
+"""Flight and Hotel specialists used by every Swarm pass."""
 
 from __future__ import annotations
 
-from app.mcp import client as mcp_client
+from app.mcp.providers import service
 from app.schemas import (
     FlightOption,
     FlightSearchResult,
     HotelOption,
     HotelSearchResult,
+    PlaceSearchResult,
     TripRequest,
 )
 
@@ -66,40 +67,46 @@ def rank_hotels(options: list[HotelOption], request: TripRequest) -> list[HotelO
     )
 
 
-async def search_flights(request: TripRequest) -> FlightSearchResult:
+async def search_flights(
+    request: TripRequest, *, allow_live: bool = True
+) -> FlightSearchResult:
     assert request.origin and request.destination and request.departure_date
     assert request.travelers
-    payload = await mcp_client.call_travel_tool(
-        "search_flights",
-        {
-            "origin": request.origin,
-            "destination": request.destination,
-            "departure_date": request.departure_date.isoformat(),
-            "return_date": request.return_date.isoformat() if request.return_date else "",
-            "adults": request.travelers,
-            "currency": request.currency,
-        },
+    result = await service.search_flights(
+        origin=request.origin,
+        destination=request.destination,
+        departure_date=request.departure_date,
+        return_date=request.return_date,
+        adults=request.travelers,
+        preferences=request.flight_preferences,
+        allow_live=allow_live,
     )
-    result = FlightSearchResult.model_validate(payload)
     result.results = rank_flights(result.results, request)
     return result
 
 
-async def search_hotels(request: TripRequest) -> HotelSearchResult:
+async def search_hotels(
+    request: TripRequest, *, allow_live: bool = True
+) -> HotelSearchResult:
     assert request.destination and request.departure_date and request.return_date
     assert request.travelers
-    payload = await mcp_client.call_travel_tool(
-        "search_hotels",
-        {
-            "destination": request.destination,
-            "check_in_date": request.departure_date.isoformat(),
-            "check_out_date": request.return_date.isoformat(),
-            "adults": request.travelers,
-            "currency": request.currency,
-            "max_price": request.hotel_preferences.max_nightly_price,
-        },
+    result = await service.search_hotels(
+        destination=request.destination,
+        check_in_date=request.departure_date,
+        check_out_date=request.return_date,
+        adults=request.travelers,
+        max_price=request.hotel_preferences.max_nightly_price,
+        allow_live=allow_live,
     )
-    result = HotelSearchResult.model_validate(payload)
     result.results = rank_hotels(result.results, request)
     return result
 
+
+async def search_places(
+    request: TripRequest, *, allow_live: bool = True
+) -> PlaceSearchResult:
+    assert request.destination
+    return await service.search_places(
+        destination=request.destination,
+        allow_live=allow_live,
+    )

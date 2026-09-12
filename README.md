@@ -1,18 +1,28 @@
 # Agentic Travel Planner
 
-Capstone trợ lý lập kế hoạch du lịch bằng FastAPI, LangGraph, MCP và Streamlit. Project có một mode duy nhất, nhưng thể hiện đủ Hierarchical Supervisor, specialist agents, tool calling qua MCP, HITL, memory và Swarm-style handoff khi chỉnh sửa.
+Capstone trợ lý lập kế hoạch du lịch bằng FastAPI, LangGraph, MCP và Streamlit. Project có
+một mode duy nhất và đi thẳng vào Swarm: Flight, Hotel, Place và Planner Agent tự
+handoff cho nhau cho cả plan đầu tiên lẫn revision.
+
+Tài liệu đọc code và debug chi tiết: [`DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md).
 
 ## Điểm chính
 
 - FastAPI là backend duy nhất; Streamlit chỉ gọi API.
-- Supervisor điều phối `Flight Agent → Hotel Agent → Planner Agent`.
+- Streamlit giữ nguyên lịch sử chat và từng phiên bản plan; yêu cầu chỉnh sửa và plan mới được nối
+  tiếp ở cuối timeline.
+- Không có Supervisor/Hierarchical layer.
 - Hai điểm HITL: bổ sung constraint còn thiếu và duyệt/chỉnh kế hoạch.
-- Revision chỉ chạy lại dữ liệu bị ảnh hưởng. Ví dụ đổi hotel và giữ flight thì không search flight lại.
-- MCP server độc lập cung cấp `search_flights` và `search_hotels`.
-- Live search dùng OpenAI Responses Web Search, không cần Tavily.
-- Khi live search lỗi hoặc thiếu nguồn, toàn bộ response đó chuyển sang mock; không trộn web/mock trong cùng response.
-- Giá và ngân sách là VND; budget được tính bằng code, không giao cho LLM cộng số.
-- Không booking, thanh toán hay giữ chỗ.
+- Revision chỉ chạy lại agent bị ảnh hưởng. Đổi hotel và giữ flight sẽ không search flight.
+- Flight thật: Google Flights qua hosted MCP chính thức của SerpApi.
+- Hotel thật: Booking.com qua Flightpowers Booking MCP connector được liệt kê trên Glama.
+- Địa điểm thật: Google Maps qua chính SerpApi MCP, gồm địa chỉ/rating/số review.
+- Vé hiển thị đủ chiều đi/về; hotel chọn riêng cho từng đêm; mọi nhóm chi phí có line item.
+- Thiếu key hoặc provider lỗi: fallback cả response sang local MCP mock, không trộn dữ liệu.
+- Hotel detail chỉ được tra lại khi người dùng bấm xem; flight booking options được giữ ở API
+  read-only để kiểm tra qua Swagger hoặc tích hợp khác.
+- App không tự gửi form đặt vé, không booking, thanh toán hay giữ chỗ.
+- Budget VND được tính bằng code, không giao cho LLM cộng số.
 
 ## Kiến trúc
 
@@ -21,35 +31,53 @@ flowchart LR
     UI[Streamlit] --> API[FastAPI]
     API --> G[LangGraph]
     G --> I[Intake + validation]
-    I -->|thiếu dữ liệu| H1[HITL clarification]
-    I --> S[Supervisor]
+    I -->|thiếu dữ liệu| C[HITL clarification]
+    C --> I
+    I -->|đủ dữ liệu| S[Swarm entry]
     S --> F[Flight Agent]
-    S --> H[Hotel Agent]
-    S --> P[Planner Agent]
-    F --> MCP[Travel MCP]
-    H --> MCP
-    MCP --> W[OpenAI Web Search]
-    MCP --> M[Mock fallback]
-    P --> H2[HITL review]
-    H2 -->|revision| SW[Selective Swarm handoff]
-    H2 -->|approve| MEM[JSON preference memory]
+    F --> H[Hotel Agent]
+    H --> L[Place Agent]
+    L --> P[Planner Agent]
+    P --> R[HITL review]
+    R -->|revise| Q[Selective queue]
+    Q --> F
+    Q --> H
+    Q --> P
+    R -->|approve| MEM[JSON preference memory]
+    F --> SMCP[SerpApi MCP]
+    H --> BMCP[Booking MCP]
+    L --> SMCP
+    F -. lỗi/thiếu key .-> MOCK[Local mock MCP]
+    H -. lỗi/thiếu key .-> MOCK
 ```
+
+`swarm_entry` chỉ tạo queue kỹ thuật, không phải một agent quản lý. Mỗi specialist hoàn tất
+xong sẽ trả `Command(goto=...)` để handoff thẳng đến agent kế tiếp.
 
 ## Cấu trúc chính
 
 ```text
 app/
-  agents/           # supervisor, flight/hotel specialists, planner
-  mcp/              # stdio MCP server/client và live/mock providers
-  memory/           # preference memory dạng JSON
-  services/         # LLM extraction, budget, validation, constraint patch
-  api.py             # start/resume/status endpoints
-  graph.py           # toàn bộ LangGraph + HITL + Swarm handoff
-  main.py            # FastAPI entrypoint
-ui/streamlit_app.py  # frontend mỏng
-data/                # canonical mock datasets
-tests/               # unit + workflow integration tests
-SPEC.md              # scope/design đã chốt
+  agents/
+    specialists.py       # Flight/Hotel/Place search + deterministic ranking
+    planner.py            # chọn evidence, itinerary, budget
+  mcp/
+    client.py             # 3 MCP connections: serpapi, booking, local mock
+    server.py             # local stdio MCP fallback
+    providers/
+      serpapi.py          # Google Flights + Google Maps + booking options
+      booking.py          # Booking tool params + normalization + hotel lookup
+      mock.py             # deterministic local data
+      service.py          # live-first/fallback facade
+  memory/store.py         # preference memory dạng JSON
+  services/               # LLM extraction, validation, revision patch, budget
+  api.py                   # workflow + on-demand detail endpoints
+  graph.py                 # Swarm graph + HITL
+  main.py                  # FastAPI entrypoint
+ui/streamlit_app.py        # frontend mỏng
+data/                      # mock datasets
+tests/                     # unit + workflow integration tests
+SPEC.md                    # scope/design chuẩn hiện tại
 ```
 
 ## Cài đặt trên Windows
@@ -62,24 +90,39 @@ python -m pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
-Trong `.env`:
-
-```dotenv
-OPENAI_API_KEYS=sk-...
-LLM_MODEL=gpt-5.4-mini
-WEB_SEARCH_MODEL=gpt-5.4-mini
-USE_MOCK_LLM=false
-USE_MOCK_TRAVEL_DATA=false
-```
-
-Không có key project vẫn chạy bằng heuristic + mock fallback. Để demo offline hoàn toàn và không phát sinh phí:
+### Chế độ offline, không phát sinh phí
 
 ```dotenv
 USE_MOCK_LLM=true
 USE_MOCK_TRAVEL_DATA=true
 ```
 
-## Chạy
+### Chế độ live
+
+```dotenv
+OPENAI_API_KEYS=your-openai-key
+USE_MOCK_LLM=false
+LLM_MAX_COMPLETION_TOKENS=3200
+
+USE_MOCK_TRAVEL_DATA=false
+SERPAPI_API_KEY=your-serpapi-key
+SERPAPI_MCP_URL=https://mcp.serpapi.com/mcp
+
+BOOKING_MCP_URL=https://hotels.flightpowers.com/mcp
+RAPIDAPI_KEY=your-rapidapi-key
+```
+
+- OpenAI chỉ dùng cho parse request/revision và viết itinerary.
+- Nếu itinerary structured output bị cắt vì quá dài, Planner tự chuyển sang fallback an toàn
+  thay vì làm dừng workflow.
+- SerpApi key dùng cho flight search/booking options và Google Maps place search.
+- RapidAPI key dùng cho Flightpowers Booking MCP ad-free. Cần subscribe Booking Live API
+  của publisher trước khi gọi.
+- Nếu bạn thêm connector qua Glama Gateway, thay `BOOKING_MCP_URL` bằng URL Glama cấp.
+  Gateway có thể quản lý credential nên `RAPIDAPI_KEY` có thể để trống.
+- Không có key thì project vẫn chạy: heuristic LLM fallback + travel mock fallback.
+
+## Chạy BE và FE
 
 Terminal 1:
 
@@ -95,49 +138,60 @@ Terminal 2:
 python -m streamlit run ui/streamlit_app.py --server.address 127.0.0.1 --server.port 8501
 ```
 
-Mở:
+Mở UI tại <http://127.0.0.1:8501>, Swagger tại <http://127.0.0.1:8000/docs> và health
+tại <http://127.0.0.1:8000/health>.
 
-- UI: <http://127.0.0.1:8501>
-- Swagger: <http://127.0.0.1:8000/docs>
-- Health: <http://127.0.0.1:8000/health>
+## API chính
 
-## Test qua Swagger/FastAPI
+| Method | Endpoint | Mục đích |
+|---|---|---|
+| `POST` | `/api/trips/start` | Tạo thread và chạy tới HITL đầu tiên. |
+| `POST` | `/api/trips/{thread_id}/resume` | Trả lời clarification hoặc approve/revise. |
+| `GET` | `/api/trips/{thread_id}` | Xem snapshot hiện tại. |
+| `POST` | `/api/trips/{thread_id}/flight-booking-options` | Tra seller của một flight, read-only. |
+| `POST` | `/api/trips/{thread_id}/hotel-details` | Tra lại một hotel theo tên, read-only. |
 
-1. `POST /api/trips/start`:
-
-```json
-{
-  "message": "Đi từ TP.HCM đến Đà Nẵng từ 2027-01-15 đến 2027-01-18, 2 người, ngân sách 20 triệu VND, thích biển và ẩm thực.",
-  "user_id": "demo-user"
-}
-```
-
-2. Lấy `thread_id`, rồi gọi `POST /api/trips/{thread_id}/resume`:
+Body của hai endpoint on-demand:
 
 ```json
-{
-  "action": "revise",
-  "message": "Đổi khách sạn dưới 1,5 triệu/đêm, giữ nguyên chuyến bay."
-}
+{"option_id": "SF1"}
 ```
 
-3. Duyệt kết quả:
+Với round trip, planning dùng một call ban đầu và một call lấy các lựa chọn chiều về cho
+chuyến đi được xếp hạng cao nhất. UI cho chọn combo đi–về; giá từng chiều chỉ hiện khi provider
+thật sự tách giá. Nếu seller yêu cầu `POST` form, app không trả form data và không tự submit.
 
-```json
-{
-  "action": "approve",
-  "message": ""
-}
-```
-
-## Chạy test
+## Test và log BE
 
 ```powershell
+python -m ruff check app ui tests
 python -m pytest -q
 ```
 
-Test luôn ép mock nên không gọi OpenAI và không phát sinh phí.
+Tests luôn ép mock nên không gọi OpenAI, SerpApi hay Booking.
 
-## Provenance và giới hạn
+Log backend nằm ngay terminal chạy Uvicorn. Muốn nhiều chi tiết hơn:
 
-Mỗi flight/hotel có `source`, `source_url`, `observed_at`, `is_estimate`. Chỉ kết quả đi qua Web Search thật và khớp URL nguồn mới được gắn `source="web"`; còn lại là `source="mock"` kèm warning. Project là demo recommendation, không phải hệ thống giá/availability hoặc booking production.
+```powershell
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000 --log-level debug
+```
+
+Trong UI mở `Agent trace & metrics` để xem node, tool, handoff, số MCP call và số external
+search call. Không log key hay raw provider payload.
+
+## Nguồn và giới hạn
+
+- SerpApi flight/place trả `source="serpapi"`; Booking hotel trả `source="booking"`.
+- Fallback trả `source="mock"` kèm warning.
+- `observed_at` ghi thời điểm thu thập; giá chỉ là snapshot, không được giữ.
+- Hotel rates có thể đổi trong vài phút; on-demand detail luôn search lại.
+- Đây là demo recommendation, không phải booking engine production.
+
+Tài liệu provider:
+
+- [SerpApi Google Flights API](https://serpapi.com/google-flights-api)
+- [SerpApi booking options](https://serpapi.com/google-flights-booking-options)
+- [SerpApi MCP server](https://github.com/serpapi/serpapi-mcp)
+- [SerpApi Google Maps local results](https://serpapi.com/maps-local-results)
+- [Flightpowers Booking connector trên Glama](https://glama.ai/mcp/connectors/com.flightpowers/booking)
+- [Flightpowers travel-agent-skills](https://github.com/mtnrabi/travel-agent-skills)

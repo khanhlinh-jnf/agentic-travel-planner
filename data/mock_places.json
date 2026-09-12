@@ -1,0 +1,82 @@
+[
+  {
+    "destination": "DAD",
+    "name": "Bãi biển Mỹ Khê",
+    "category": "Điểm tham quan",
+    "address": "Võ Nguyên Giáp, Sơn Trà, Đà Nẵng",
+    "rating": 4.6,
+    "review_count": 18000,
+    "price_level": "Miễn phí",
+    "source_url": "https://www.google.com/maps/search/?api=1&query=Bai+bien+My+Khe+Da+Nang"
+  },
+  {
+    "destination": "DAD",
+    "name": "Bảo tàng Điêu khắc Chăm Đà Nẵng",
+    "category": "Bảo tàng",
+    "address": "02 đường 2 Tháng 9, Hải Châu, Đà Nẵng",
+    "rating": 4.2,
+    "review_count": 6500,
+    "price_level": "Có vé",
+    "source_url": "https://www.google.com/maps/search/?api=1&query=Bao+tang+Dieu+khac+Cham+Da+Nang"
+  },
+  {
+    "destination": "DAD",
+    "name": "Mì Quảng Bà Mua",
+    "category": "Nhà hàng món Việt",
+    "address": "19-21 Trần Bình Trọng, Hải Châu, Đà Nẵng",
+    "rating": 4.1,
+    "review_count": 5000,
+    "price_level": "₫₫",
+    "source_url": "https://www.google.com/maps/search/?api=1&query=Mi+Quang+Ba+Mua+Da+Nang"
+  },
+  {
+    "destination": "DAD",
+    "name": "Chợ Hàn",
+    "category": "Chợ",
+    "address": "119 Trần Phú, Hải Châu, Đà Nẵng",
+    "rating": 4.0,
+    "review_count": 30000,
+    "price_level": "₫",
+    "source_url": "https://www.google.com/maps/search/?api=1&query=Cho+Han+Da+Nang"
+  },
+  {
+    "destination": "PQC",
+    "name": "Chợ đêm Phú Quốc",
+    "category": "Chợ đêm",
+    "address": "6 Bạch Đằng, Dương Đông, Phú Quốc",
+    "rating": 4.0,
+    "review_count": 15000,
+    "price_level": "₫₫",
+    "source_url": "https://www.google.com/maps/search/?api=1&query=Cho+dem+Phu+Quoc"
+  },
+  {
+    "destination": "NRT",
+    "name": "Sensō-ji",
+    "category": "Chùa",
+    "address": "2 Chome-3-1 Asakusa, Taito City, Tokyo",
+    "rating": 4.5,
+    "review_count": 80000,
+    "price_level": "Miễn phí",
+    "source_url": "https://www.google.com/maps/search/?api=1&query=Sensoji+Tokyo"
+  },
+  {
+    "destination": "ANY",
+    "name": "Điểm tham quan trung tâm",
+    "category": "Điểm tham quan",
+    "address": "Khu vực trung tâm",
+    "rating": 4.2,
+    "review_count": 1000,
+    "price_level": null,
+    "source_url": null
+  },
+  {
+    "destination": "ANY",
+    "name": "Quán ăn địa phương được đánh giá tốt",
+    "category": "Nhà hàng",
+    "address": "Khu vực trung tâm",
+    "rating": 4.3,
+    "review_count": 500,
+    "price_level": "₫₫",
+    "source_url": null
+  }
+]

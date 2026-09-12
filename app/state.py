@@ -8,6 +8,7 @@ from typing import Annotated, Literal, TypedDict
 from app.schemas import (
     FlightOption,
     HotelOption,
+    PlaceOption,
     RevisionIntent,
     TraceEvent,
     TripPlan,
@@ -30,18 +31,17 @@ class TravelState(TypedDict, total=False):
 
     flight_options: list[FlightOption]
     hotel_options: list[HotelOption]
+    place_options: list[PlaceOption]
     trip_plan: TripPlan | None
 
     flight_search_stale: bool
     hotel_search_stale: bool
+    place_search_stale: bool
     itinerary_stale: bool
-    supervisor_decision: Literal["flight", "hotel", "planner", "review", "fail"]
-    supervisor_steps: int
-
     review_action: Literal["approve", "revise"] | None
     revision_request: str
     revision_intent: RevisionIntent | None
-    revision_queue: list[str]
+    agent_queue: list[Literal["flight", "hotel", "place", "planner"]]
     active_agent: str | None
     revision_count: int
 

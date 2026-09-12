@@ -24,18 +24,21 @@ class Settings(BaseSettings):
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
     llm_model: str = Field(default="gpt-5.4-mini", alias="LLM_MODEL")
     llm_max_completion_tokens: int = Field(
-        default=1800, alias="LLM_MAX_COMPLETION_TOKENS"
+        default=3200, alias="LLM_MAX_COMPLETION_TOKENS"
     )
     use_mock_llm: bool = Field(default=False, alias="USE_MOCK_LLM")
 
     use_mock_travel_data: bool = Field(default=False, alias="USE_MOCK_TRAVEL_DATA")
-    web_search_model: str = Field(default="gpt-5.4-mini", alias="WEB_SEARCH_MODEL")
-    web_search_max_results: int = Field(default=5, alias="WEB_SEARCH_MAX_RESULTS")
-    web_search_timeout_seconds: float = Field(
-        default=45.0, alias="WEB_SEARCH_TIMEOUT_SECONDS"
+    travel_search_max_results: int = Field(default=5, alias="TRAVEL_SEARCH_MAX_RESULTS")
+    serpapi_api_key: str = Field(default="", alias="SERPAPI_API_KEY")
+    serpapi_mcp_url: str = Field(
+        default="https://mcp.serpapi.com/mcp", alias="SERPAPI_MCP_URL"
     )
+    booking_mcp_url: str = Field(
+        default="https://hotels.flightpowers.com/mcp", alias="BOOKING_MCP_URL"
+    )
+    rapidapi_key: str = Field(default="", alias="RAPIDAPI_KEY")
 
-    max_supervisor_steps: int = Field(default=8, alias="MAX_SUPERVISOR_STEPS")
     max_revisions: int = Field(default=3, alias="MAX_REVISIONS")
     max_external_search_calls_per_plan: int = Field(
         default=6, alias="MAX_EXTERNAL_SEARCH_CALLS_PER_PLAN"
@@ -69,4 +72,3 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
-

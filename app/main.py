@@ -9,7 +9,7 @@ from app.config import settings
 app = FastAPI(
     title=settings.app_name,
     version="0.1.0",
-    description="Agentic travel planning demo with LangGraph, HITL, MCP, and OpenAI Web Search.",
+    description="Swarm travel planner with LangGraph, HITL, SerpApi MCP, and Booking MCP.",
 )
 app.add_middleware(
     CORSMiddleware,

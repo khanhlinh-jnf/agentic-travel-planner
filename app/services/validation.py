@@ -21,8 +21,11 @@ def normalize_request(request: TripRequest) -> TripRequest:
         values["return_date"] = request.departure_date + timedelta(
             days=request.duration_days - 1
         )
-    if request.departure_date and request.return_date and not request.duration_days:
-        values["duration_days"] = (request.return_date - request.departure_date).days + 1
+    if request.departure_date and request.return_date:
+        calculated_days = (request.return_date - request.departure_date).days + 1
+        # Explicit dates are the source of truth. Never ask the user to reconcile a
+        # duration that the LLM extracted or calculated incorrectly.
+        values["duration_days"] = calculated_days if 1 <= calculated_days <= 30 else None
     return TripRequest.model_validate(values)
 
 
@@ -45,8 +48,8 @@ def validate_request(
         if request.return_date < request.departure_date:
             errors.append("Ngày về phải bằng hoặc sau ngày khởi hành.")
         expected_days = (request.return_date - request.departure_date).days + 1
-        if request.duration_days and expected_days != request.duration_days:
-            errors.append("Ngày về và số ngày chuyến đi đang mâu thuẫn.")
+        if expected_days > 30:
+            errors.append("MVP chỉ hỗ trợ chuyến đi tối đa 30 ngày.")
     if request.total_budget is not None and request.total_budget <= 0:
         errors.append("Ngân sách phải lớn hơn 0.")
     return missing, errors
