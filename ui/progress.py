@@ -98,7 +98,7 @@ def stream_trip(base_url, path, payload):
     return result
 
 
-def render_observability(result):
+def render_observability(result, graph_state=None):
     data = result.get("observability", {})
     runs = data.get("runs") or []
     if not runs:
@@ -131,3 +131,11 @@ def render_observability(result):
                 for r in runs
             ], hide_index=True, width="stretch")
             st.json(latest["generations"])
+        if graph_state:
+            with st.expander("Chi tiết kỹ thuật LangGraph"):
+                st.json(graph_state.get("metrics", {}))
+                for event in graph_state.get("trace", []):
+                    st.write(
+                        f"`{event['kind']}` **{event['actor']}** — "
+                        f"{event['action']} {event.get('detail', '')}"
+                    )

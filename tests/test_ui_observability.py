@@ -28,6 +28,7 @@ def test_streamlit_renders_plan_with_observability(monkeypatch):
     ui.session_state["result"] = result
     ui.run(timeout=20)
     assert not ui.exception
+    assert any(item.label == "🤖 Hoạt động trợ lý" for item in ui.tabs)
     labels = {item.label for item in ui.metric}
     assert {"Thời gian xử lý", "Token LLM", "Phí LLM ước tính", "LLM / MCP calls"} <= labels
     assert any(item.label == "Agent, prompt version và lịch sử các lượt" for item in ui.expander)

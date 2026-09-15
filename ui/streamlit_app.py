@@ -769,7 +769,13 @@ def render_warnings(warnings: list[str]) -> None:
         st.markdown("\n".join(f"- {warning}" for warning in clean))
 
 
-def render_plan(plan: dict[str, Any], version: int, *, interactive: bool) -> None:
+def render_plan(
+    plan: dict[str, Any],
+    version: int,
+    *,
+    interactive: bool,
+    observability_result: dict[str, Any] | None = None,
+) -> None:
     flight = plan["recommended_flight"]
     destination = escape(str(flight.get("destination") or "điểm đến"))
     price_per_person = flight.get("price_per_person") or 0
@@ -788,15 +794,17 @@ def render_plan(plan: dict[str, Any], version: int, *, interactive: bool) -> Non
         """,
         unsafe_allow_html=True,
     )
-    overview_tab, travel_tab, itinerary_tab, sheet_tab, budget_tab = st.tabs(
-        [
-            "✨ Tổng quan",
-            "✈️ Di chuyển & ở",
-            "🗓️ Lịch trình",
-            "📋 Sheet lịch trình",
-            "💰 Ngân sách",
-        ]
-    )
+    tab_labels = [
+        "✨ Tổng quan",
+        "✈️ Di chuyển & ở",
+        "🗓️ Lịch trình",
+        "📋 Sheet lịch trình",
+        "💰 Ngân sách",
+    ]
+    if observability_result:
+        tab_labels.append("🤖 Hoạt động trợ lý")
+    tabs = st.tabs(tab_labels)
+    overview_tab, travel_tab, itinerary_tab, sheet_tab, budget_tab = tabs[:5]
     with overview_tab:
         st.markdown("#### Tóm tắt đề xuất")
         overview_one, overview_two, overview_three = st.columns(3)
@@ -817,6 +825,9 @@ def render_plan(plan: dict[str, Any], version: int, *, interactive: bool) -> Non
 
     with budget_tab:
         render_budget(plan, selected_flight, selected_hotels)
+    if observability_result:
+        with tabs[5]:
+            render_observability(observability_result, observability_result.get("state", {}))
     render_warnings(plan.get("warnings", []))
     if not interactive:
         st.caption("Đây là phiên bản cũ — được giữ lại để đối chiếu.")
@@ -852,6 +863,7 @@ def render_timeline(current_result: dict[str, Any] | None) -> None:
                     event["plan"],
                     event["version"],
                     interactive=latest_is_reviewable and index == latest_plan_index,
+                    observability_result=current_result if index == latest_plan_index else None,
                 )
 
 
@@ -917,15 +929,6 @@ else:
         f"· Phase: {result['phase']}"
     )
     render_timeline(result)
-    render_observability(result)
-
-    with st.expander("Agent trace & metrics"):
-        st.json(state.get("metrics", {}))
-        for event in state.get("trace", []):
-            st.write(
-                f"`{event['kind']}` **{event['actor']}** — "
-                f"{event['action']} {event.get('detail', '')}"
-            )
 
     if pending.get("kind") == "clarification":
         answer = st.chat_input("Bổ sung thông tin còn thiếu rồi nhấn Enter...")
