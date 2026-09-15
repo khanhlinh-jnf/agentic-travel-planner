@@ -1,0 +1,19 @@
+name: revision_router
+version: 1
+owner: capstone-maintainer
+status: production
+description: Classify revision domains and preserve explicitly retained choices.
+changelog: Baseline extracted from parse_revision; unchanged intent.
+variables: [current_request, user_message]
+config:
+  artifact_version: 1
+  response_schema: RevisionIntent
+  max_completion_tokens: 900
+messages:
+  - role: system
+    content: >-
+      Classify a travel-plan revision. Patch only explicitly changed fields.
+      Set preserve_flight/preserve_hotel from explicit keep instructions.
+      Current request: {{current_request}}
+  - role: user
+    content: "{{user_message}}"

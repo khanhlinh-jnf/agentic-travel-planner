@@ -14,6 +14,22 @@ Build one medium-scope travel-planner demo that shows:
 The product recommends only. It never books, pays, logs in, submits a booking form, or
 claims that a fare/room is held.
 
+### LLMOps implementation addendum (2026-09-12)
+
+- Git YAML prompt artifacts for intake, revision intent and itinerary, with immutable versions,
+  deployment aliases and optional Langfuse resolution. Remote failure uses local evidence-marked fallback.
+- Planner v1 remains production; v2 is a staging candidate, not a proven improvement.
+- Per-run prompt pinning and optional sticky planner A/B routing (off by default).
+- Request/node/tool/generation observations; session = trip thread; separate run per resume/lookup.
+- Response usage-based token/cost estimates, cached input accounting, unknown cost represented as null.
+  Costs are LLM-only, exclude travel providers, and are separate from the travel budget.
+- SSE POST start/resume routes emit live node/tool progress, then result/error; existing JSON APIs remain.
+- Cloud and content capture are optional. Offline tests use mocks and an in-memory SDK exporter.
+- One frozen-evidence comparison script supports at most two explicitly requested paid generations;
+  automatic quality scoring, production experiment analysis and auto-promotion are out of scope.
+- No durable tracing/checkpoint store, distributed execution lock or authentication added in this scope.
+  See [the learning guide](docs/LEARN_THE_REPO.html) for design decisions and setup.
+
 ## 2. Confirmed decisions
 
 - Repository: `agentic-travel-planner`.

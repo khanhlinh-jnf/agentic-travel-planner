@@ -8,6 +8,7 @@ import sys
 from typing import Any, Literal
 
 from app.config import settings
+from app.services.observability import tool_span
 
 ProviderName = Literal["mock", "serpapi", "booking"]
 _cached_tools: dict[ProviderName, dict[str, Any]] = {}
@@ -101,10 +102,11 @@ def _coerce_payload(value: Any) -> Any:
 
 
 async def call_provider_tool(provider: ProviderName, name: str, arguments: dict) -> Any:
-    tools = await get_provider_tools(provider)
-    if name not in tools:
-        raise LookupError(f"MCP tool not found on {provider}: {name}")
-    return _coerce_payload(await tools[name].ainvoke(arguments))
+    with tool_span(provider, name):
+        tools = await get_provider_tools(provider)
+        if name not in tools:
+            raise LookupError(f"MCP tool not found on {provider}: {name}")
+        return _coerce_payload(await tools[name].ainvoke(arguments))
 
 
 def reset_cache() -> None:

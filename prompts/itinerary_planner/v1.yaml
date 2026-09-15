@@ -1,0 +1,36 @@
+name: itinerary_planner
+version: 1
+owner: capstone-maintainer
+status: production
+description: Evidence-grounded Vietnamese itinerary and selective revision.
+changelog: Baseline extracted from draft_narrative; retained concise output limits.
+variables: [trip_request, flight, hotel, places, current_plan, revision_instruction, duration_days]
+config:
+  artifact_version: 1
+  response_schema: PlanNarrative
+  max_completion_tokens: 3200
+messages:
+  - role: system
+    content: You are a concise Vietnamese travel planner.
+  - role: user
+    content: |
+      Draft a Vietnamese day-by-day itinerary for this request:
+      {{trip_request}}
+      Selected flight schedule: {{flight}}
+      Selected hotel: {{hotel}}
+      Place candidates from Google Maps or mock fallback: {{places}}
+      Existing plan for selective revision: {{current_plan}}
+      Revision instruction: {{revision_instruction}}
+
+      Use interests, pace, budget, hotel and flight preferences as real constraints.
+      When revising, change the affected activities visibly and concretely.
+      Preserve only parts that do not conflict with the revision.
+      Use named places from supplied candidates when relevant. Copy their facts exactly.
+      Never invent place facts, opening hours, live prices, closures or availability.
+      Mark time-sensitive activities needs_verification=true.
+      Never attach restaurants to flights, airport transfers, check-in or check-out.
+      Label those transport activities flexible. Do not repeat the same meal/place in a day.
+      Estimate conservative integer VND costs. Use at most 2 concise activities per day,
+      30 words per description, 50 words for rationale and 3 short warnings.
+      Only fill place fields when the candidate is used.
+      Return exactly {{duration_days}} itinerary days.

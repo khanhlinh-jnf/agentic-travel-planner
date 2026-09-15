@@ -1,0 +1,13 @@
+{
+  "id": "late-arrival-fixed-evidence",
+  "expected_start": "2099-10-15",
+  "variables": {
+    "trip_request": "{\"origin\":\"TP.HCM\",\"destination\":\"Đà Nẵng\",\"departure_date\":\"2099-10-15\",\"return_date\":\"2099-10-17\",\"duration_days\":3,\"travelers\":2,\"total_budget\":20000000,\"interests\":[\"biển\",\"ẩm thực\"],\"travel_pace\":\"relaxed\"}",
+    "flight": "{\"outbound_arrival\":\"2099-10-15T21:00:00\",\"return_departure\":\"2099-10-17T09:00:00\"}",
+    "hotel": "{\"name\":\"Demo Beach Hotel\",\"source\":\"mock\"}",
+    "places": "[{\"name\":\"Demo Seafood\",\"category\":\"restaurant\",\"address\":\"Demo Street\",\"rating\":4.2,\"source\":\"mock\"}]",
+    "current_plan": "null",
+    "revision_instruction": "none",
+    "duration_days": 3
+  }
+}

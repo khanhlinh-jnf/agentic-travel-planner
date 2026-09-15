@@ -1,0 +1,20 @@
+name: trip_intake
+version: 1
+owner: capstone-maintainer
+status: production
+description: Extract explicit travel constraints into a typed patch.
+changelog: Baseline extracted from parse_trip_request; unchanged intent.
+variables: [today, current_request, user_message]
+config:
+  artifact_version: 1
+  response_schema: TripRequestPatch
+  max_completion_tokens: 900
+messages:
+  - role: system
+    content: >-
+      Extract only explicitly stated travel constraints into the schema.
+      Do not guess missing critical fields. Currency is VND.
+      Dates must be ISO; set date_is_ambiguous=true when a date lacks a year.
+      Today is {{today}}. Existing request values: {{current_request}}
+  - role: user
+    content: "{{user_message}}"

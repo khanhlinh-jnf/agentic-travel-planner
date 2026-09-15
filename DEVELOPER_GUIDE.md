@@ -4,6 +4,33 @@ Tài liệu này giúp bạn đọc toàn bộ backend, hiểu agent handoff, MC
 FastAPI endpoints, Streamlit và cách debug log. Design chuẩn hiện tại là **Swarm-first**;
 project không còn Supervisor/Hierarchical layer.
 
+## Bổ sung LLMOps (12/09/2026)
+
+Tài liệu trực quan mới: [Học product, kỹ thuật và code](docs/LEARN_THE_REPO.html).
+Các phần nghiệp vụ bên dưới vẫn áp dụng; prompt/đo lường nay được tách riêng:
+
+- `prompts/<name>/vN.yaml`: messages, variables, schema/model config, owner/changelog;
+  `*.txt` là alias deployment. Ba prompt: trip_intake, revision_router, itinerary_planner.
+- `app/prompts/registry.py`: local hoặc Langfuse resolver, contract validation, cache/pin trong run,
+  fallback có provenance; planner A/B tùy chọn và tắt mặc định.
+- `app/services/llm.py::_managed_parse`: cửa gọi model chung, prompt reference và usage;
+  không còn counter live calls toàn cục dùng chung giữa request.
+- `app/services/observability.py`: request ContextVar, spans request/node/tool/generation,
+  SSE progress, run history, timing/token/cost. `pricing.py` chứa đơn giá/override.
+- `app/api.py`: thêm POST `/start/stream`, `/{thread_id}/resume/stream` dưới `/api/trips`.
+  Response JSON giữ state cũ và thêm `observability`; GET snapshot cũng có run history.
+- `ui/progress.py`: HTTP streaming, thẻ agent và summary metrics. FE không gọi graph trực tiếp.
+- `scripts/check_langfuse.py`, `publish_prompts.py`, `compare_prompts.py`: setup và experiment.
+
+Mỗi start/resume/lookup là run riêng; session Langfuse = thread_id. Graph HITL là awaiting_input,
+không phải failure. MCP tool count có thể gồm mock và không bằng quota external search count.
+Chi phí LLM là USD ước tính, không gộp ngân sách du lịch VND. Thiếu usage/price → null.
+Capture nội dung trace mặc định tắt; local prompt/metrics vẫn chạy khi không có Cloud.
+History và checkpoints vẫn ở RAM, không bền qua restart và chưa hỗ trợ nhiều worker.
+
+Để học theo thứ tự: đọc sections 02–04 trong HTML cho flow/code, 05–08 cho LLMOps,
+09–10 để kết nối/debug, 11 cho bài thực hành. Xem README cho lệnh setup cập nhật.
+
 ## 1. Mental model
 
 Có bốn lớp chính:

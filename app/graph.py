@@ -23,6 +23,7 @@ from app.schemas import TraceEvent, TripRequest, TripRequestPatch, WorkflowMetri
 from app.services import quota
 from app.services.constraint_patch import apply_revision
 from app.services.llm import live_call_count, parse_revision, parse_trip_request
+from app.services.observability import instrument_node
 from app.services.validation import clarification_questions, normalize_request, validate_request
 from app.state import TravelState
 
@@ -507,19 +508,22 @@ async def fail_node(state: TravelState) -> dict[str, Any]:
 
 def build_graph():
     builder = StateGraph(TravelState)
-    builder.add_node("load_memory", load_memory_node)
-    builder.add_node("parse_request", parse_request_node)
-    builder.add_node("validate_request", validate_request_node)
-    builder.add_node("clarify", clarification_node)
-    builder.add_node("swarm_entry", swarm_entry_node)
-    builder.add_node("flight_agent", flight_agent_node)
-    builder.add_node("hotel_agent", hotel_agent_node)
-    builder.add_node("place_agent", place_agent_node)
-    builder.add_node("planner_agent", planner_agent_node)
-    builder.add_node("review", review_node)
-    builder.add_node("revision_entry", revision_entry_node)
-    builder.add_node("save", save_node)
-    builder.add_node("fail", fail_node)
+    for name, node in [
+        ("load_memory", load_memory_node),
+        ("parse_request", parse_request_node),
+        ("validate_request", validate_request_node),
+        ("clarify", clarification_node),
+        ("swarm_entry", swarm_entry_node),
+        ("flight_agent", flight_agent_node),
+        ("hotel_agent", hotel_agent_node),
+        ("place_agent", place_agent_node),
+        ("planner_agent", planner_agent_node),
+        ("review", review_node),
+        ("revision_entry", revision_entry_node),
+        ("save", save_node),
+        ("fail", fail_node),
+    ]:
+        builder.add_node(name, instrument_node(name, node))
 
     builder.add_edge(START, "load_memory")
     builder.add_edge("load_memory", "parse_request")

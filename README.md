@@ -6,6 +6,10 @@ handoff cho nhau cho cả plan đầu tiên lẫn revision.
 
 Tài liệu đọc code và debug chi tiết: [`DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md).
 
+**Học product và LLMOps:** mở [`docs/LEARN_THE_REPO.html`](docs/LEARN_THE_REPO.html)
+bằng trình duyệt: bản đồ code, sơ đồ agent tương tác, prompt versioning, Langfuse,
+token/cost calculator, hướng dẫn debug và bài thực hành. HTML đọc offline, không cần server.
+
 ## Điểm chính
 
 - FastAPI là backend duy nhất; Streamlit chỉ gọi API.
@@ -23,6 +27,9 @@ Tài liệu đọc code và debug chi tiết: [`DEVELOPER_GUIDE.md`](DEVELOPER_G
   read-only để kiểm tra qua Swagger hoặc tích hợp khác.
 - App không tự gửi form đặt vé, không booking, thanh toán hay giữ chỗ.
 - Budget VND được tính bằng code, không giao cho LLM cộng số.
+- Prompt YAML có version/labels trong Git, tùy chọn lấy từ Langfuse; fallback local khi Cloud lỗi.
+- UI nhận tiến độ node/tool thật qua SSE, hiển thị thời gian, token, phí LLM và trace link.
+- Mỗi lượt start/resume có telemetry riêng; các lượt cùng chuyến đi được gom theo thread/session.
 
 ## Kiến trúc
 
@@ -146,7 +153,9 @@ tại <http://127.0.0.1:8000/health>.
 | Method | Endpoint | Mục đích |
 |---|---|---|
 | `POST` | `/api/trips/start` | Tạo thread và chạy tới HITL đầu tiên. |
+| `POST` | `/api/trips/start/stream` | Start với SSE progress/result/error. |
 | `POST` | `/api/trips/{thread_id}/resume` | Trả lời clarification hoặc approve/revise. |
+| `POST` | `/api/trips/{thread_id}/resume/stream` | Resume với tiến độ SSE. |
 | `GET` | `/api/trips/{thread_id}` | Xem snapshot hiện tại. |
 | `POST` | `/api/trips/{thread_id}/flight-booking-options` | Tra seller của một flight, read-only. |
 | `POST` | `/api/trips/{thread_id}/hotel-details` | Tra lại một hotel theo tên, read-only. |
@@ -164,11 +173,12 @@ thật sự tách giá. Nếu seller yêu cầu `POST` form, app không trả fo
 ## Test và log BE
 
 ```powershell
-python -m ruff check app ui tests
+python -m ruff check app ui scripts tests
 python -m pytest -q
 ```
 
 Tests luôn ép mock nên không gọi OpenAI, SerpApi hay Booking.
+Tests Langfuse dùng in-memory exporter và fake credentials, không gọi Cloud.
 
 Log backend nằm ngay terminal chạy Uvicorn. Muốn nhiều chi tiết hơn:
 
@@ -178,6 +188,57 @@ python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000 --log-level
 
 Trong UI mở `Agent trace & metrics` để xem node, tool, handoff, số MCP call và số external
 search call. Không log key hay raw provider payload.
+
+## Prompt management và Langfuse Cloud
+
+Mặc định `PROMPT_BACKEND=local`, `LANGFUSE_ENABLED=false`: prompt và metrics local hoạt động
+không cần Cloud. Prompt artifacts ở `prompts/`; `production.txt`/`staging.txt` là alias.
+Planner v1 đang production, v2 là staging candidate **chưa được đánh giá live**.
+
+Bạn tạo project Langfuse Cloud rồi thêm vào `.env` hiện có (không copy đè `.env`):
+
+```dotenv
+LANGFUSE_PUBLIC_KEY=pk-lf-your-project-key
+LANGFUSE_SECRET_KEY=sk-lf-your-project-key
+LANGFUSE_BASE_URL=https://cloud.langfuse.com
+LANGFUSE_ENABLED=true
+TELEMETRY_CAPTURE_CONTENT=false
+PROMPT_BACKEND=local
+PROMPT_LABEL=production
+```
+
+Base URL phải đúng region của project. Sau khi cài lại `requirements.txt`:
+
+```powershell
+python -m scripts.check_langfuse
+python -m scripts.publish_prompts
+python -m scripts.publish_prompts --apply --promote
+```
+
+Lệnh đầu kiểm tra auth; lệnh thứ hai chỉ validate/dry-run; lệnh cuối **upload prompts và đồng bộ
+labels từ repo lên Cloud**, không gọi OpenAI. Sau đó đặt `PROMPT_BACKEND=langfuse`, restart BE.
+Nếu chỉ muốn tracing, giữ backend prompt `local`.
+
+- Version đã publish không sửa đè; tạo `vN.yaml` mới, test rồi promote/rollback label.
+- Remote version và local artifact version có thể khác số; metadata giữ cả hai.
+- Prompt được pin trong mỗi run; cache Cloud có TTL mặc định 60 giây.
+- `python -m scripts.compare_prompts` chỉ diff offline. Thêm `--live` mới gọi tối đa **2 LLM calls**
+  trên một fixture, không gọi travel APIs; không phải benchmark đầy đủ.
+- `PROMPT_AB_ENABLED` mặc định false; bật mới chia sticky prod-a/prod-b theo user_id cho planner.
+- Usage lấy từ response, cached tokens không tính trùng. Thiếu usage/đơn giá thì cost chưa xác định,
+  không giả thành $0. `LLM_PRICES_JSON` override giá USD/million tokens.
+- Chi phí này chỉ của LLM, không gồm SerpApi/RapidAPI/hosting và không phải ngân sách du lịch VND.
+- `TELEMETRY_CAPTURE_CONTENT=false` không gửi nội dung compiled prompt/output lên trace;
+  bật true là chủ động cho phép gửi nội dung. Publish templates vẫn upload template tĩnh.
+
+Trong UI, mục **Hoạt động của trợ lý** hiển thị metrics của lượt vừa rồi, history các lượt và
+link Langfuse khi có. Node HITL chờ duyệt không bị tính là lỗi. SSE hiện tiến độ workflow,
+không stream từng token model. HTTP 200 mở stream chưa đảm bảo thành công: đọc terminal result/error.
+
+Giới hạn demo: checkpoint/run history/lock nằm trong RAM một process; restart BE làm thread cũ
+có thể 404. Chưa có durable replay, auth, multi-worker lock hoặc auto quality scoring.
+Hủy stream không đảm bảo hủy được HTTP LLM sync đang chạy; usage khi hủy có thể chưa đầy đủ.
+Cloud chưa được xác thực nếu bạn chưa thêm credentials; local tests không chứng minh Cloud đã nhận trace.
 
 ## Nguồn và giới hạn
 

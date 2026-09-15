@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 
 import httpx
 import streamlit as st
+from progress import render_observability, stream_trip
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 TIME_LABELS = {
@@ -116,6 +117,8 @@ st.markdown(
 
 
 def api_request(method: str, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    if method == "POST" and (path.endswith("/start") or path.endswith("/resume")):
+        return stream_trip(API_BASE_URL, path + "/stream", payload)
     with httpx.Client(timeout=180) as client:
         response = client.request(method, f"{API_BASE_URL}{path}", json=payload)
         response.raise_for_status()
@@ -914,6 +917,7 @@ else:
         f"· Phase: {result['phase']}"
     )
     render_timeline(result)
+    render_observability(result)
 
     with st.expander("Agent trace & metrics"):
         st.json(state.get("metrics", {}))

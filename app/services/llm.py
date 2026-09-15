@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import date, time, timedelta
 from functools import lru_cache
+from time import perf_counter
 
 from openai import LengthFinishReasonError, OpenAI
 
 from app.config import settings
+from app.prompts import registry
 from app.schemas import (
     FlightOption,
     HotelOption,
@@ -21,24 +24,84 @@ from app.schemas import (
     TripRequest,
     TripRequestPatch,
 )
-
-_LIVE_CALLS = 0
+from app.services.observability import (
+    current_run,
+    emit,
+    observation,
+    record_usage,
+    update_span,
+)
 
 
 @lru_cache(maxsize=1)
 def _client() -> OpenAI:
     if not settings.primary_api_key:
         raise RuntimeError("OPENAI_API_KEYS chưa được cấu hình")
-    return OpenAI(api_key=settings.primary_api_key)
+    return OpenAI(api_key=settings.primary_api_key, max_retries=0, timeout=120)
 
 
 def live_call_count() -> int:
-    return _LIVE_CALLS
+    run = current_run()
+    return run.llm_calls if run else 0
 
 
 def _record_live_call() -> None:
-    global _LIVE_CALLS
-    _LIVE_CALLS += 1
+    run = current_run()
+    if run:
+        run.llm_calls += 1
+
+
+def _managed_parse(name, schema, variables, *, token_limit=None):
+    prompt = registry().get(name)
+    messages = prompt.compile(**variables)
+    if prompt.config["response_schema"] != schema.__name__:
+        raise ValueError("Prompt and Python response schema mismatch")
+    model = prompt.config.get("model") or settings.llm_model
+    cap = min(5000, token_limit or int(prompt.config["max_completion_tokens"]))
+    metadata = {"prompt": prompt.reference(), "max_completion_tokens": cap}
+    if prompt.fallback_reason:
+        emit(name, "fallback", kind="prompt", detail=prompt.fallback_reason)
+    _record_live_call()
+    started = perf_counter()
+    with observation(
+        name, "generation", model=model, metadata=metadata,
+        prompt=prompt.remote,
+        input=messages if settings.telemetry_capture_content else {"captured": False},
+    ) as span:
+        try:
+            response = _client().chat.completions.parse(
+                model=model, messages=messages, response_format=schema,
+                max_completion_tokens=cap,
+            )
+        except Exception as exc:
+            record = record_usage(
+                getattr(exc, "completion", None), model=model, prompt=prompt,
+                error=type(exc).__name__,
+            )
+            _update_generation(span, record)
+            record["duration_ms"] = round((perf_counter() - started) * 1000)
+            update_span(span, level="ERROR", status_message=type(exc).__name__)
+            raise
+        record = record_usage(response, model=model, prompt=prompt)
+        record["duration_ms"] = round((perf_counter() - started) * 1000)
+        _update_generation(span, record)
+        parsed = response.choices[0].message.parsed
+        if settings.telemetry_capture_content and parsed is not None:
+            update_span(span, output=parsed.model_dump(mode="json"))
+        return parsed
+
+
+def _update_generation(span, record):
+    if not record["usage_available"]:
+        return
+    update = {"usage_details": {
+        "input": record["input_tokens"] - record["cached_input_tokens"],
+        "cached_input": record["cached_input_tokens"],
+        "output": record["output_tokens"],
+    }}
+    if record["cost_usd"] is not None:
+        update["cost_details"] = {"total": record["cost_usd"]}
+    update_span(span, **update)
 
 
 def _extract_budget(text: str) -> int | None:
@@ -154,26 +217,10 @@ def parse_trip_request(text: str, current: TripRequest | None = None) -> TripReq
 
     today = date.today().isoformat()
     current_json = current.model_dump_json() if current else "{}"
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "Extract only explicitly stated travel constraints into the schema. "
-                "Do not guess missing critical fields. Currency is VND. "
-                "Dates must be ISO; set date_is_ambiguous=true when a date lacks a year. "
-                f"Today is {today}. Existing request values: {current_json}"
-            ),
-        },
-        {"role": "user", "content": text},
-    ]
-    _record_live_call()
-    result = _client().chat.completions.parse(
-        model=settings.llm_model,
-        messages=messages,
-        response_format=TripRequestPatch,
-        max_completion_tokens=900,
+    parsed = _managed_parse(
+        "trip_intake", TripRequestPatch,
+        {"today": today, "current_request": current_json, "user_message": text},
     )
-    parsed = result.choices[0].message.parsed
     return parsed or heuristic_trip_patch(text, current)
 
 
@@ -315,52 +362,32 @@ def draft_narrative(
         if current_plan
         else None
     )
-    prompt = f"""Draft a Vietnamese day-by-day itinerary for this request:
-{request_evidence}
-
-Selected flight schedule: {flight_evidence}
-Selected hotel: {hotel_evidence}
-Verified place candidates from Google Maps or mock fallback: {place_evidence}
-Existing plan for selective revision: {current}
-Revision instruction: {revision_instruction or 'none'}
-
-Use the request's interests, pace, budget, hotel and flight preferences as real
-constraints, rather than a fixed template. If a revision instruction is supplied,
-change the affected activities concretely and visibly; do not merely mention the
-instruction in the rationale. Preserve only parts that do not conflict with it.
-Use a named place from the supplied place candidates for sightseeing or food activities
-whenever relevant. Copy its name, address, rating, review count, URL and source exactly;
-do not invent place facts. Never claim exact current opening hours, temporary closures,
-live ticket prices, or availability. Mark time-sensitive activities needs_verification=true.
-Never attach a restaurant or place to flight, airport transfer, check-in, or check-out
-activities; label those activities flexible instead. Do not repeat the same meal/place
-within one day.
-Keep estimated activity costs conservative VND integers. Use at most 2 concise activities
-per day, at most 30 words per description, at most 50 words for rationale, and at most 3
-short warnings. Only fill place fields when that candidate is actually used.
-Return exactly {request.duration_days} itinerary days."""
-    _record_live_call()
     token_limit = min(
         5_000,
         max(settings.llm_max_completion_tokens, 1_200 + (request.duration_days or 1) * 450),
     )
     try:
-        result = _client().chat.completions.parse(
-            model=settings.llm_model,
-            messages=[
-                {"role": "system", "content": "You are a concise Vietnamese travel planner."},
-                {"role": "user", "content": prompt},
-            ],
-            response_format=PlanNarrative,
-            max_completion_tokens=token_limit,
+        parsed = _managed_parse(
+            "itinerary_planner", PlanNarrative,
+            {
+                "trip_request": json.dumps(request_evidence, ensure_ascii=False),
+                "flight": json.dumps(flight_evidence, ensure_ascii=False),
+                "hotel": json.dumps(hotel_evidence, ensure_ascii=False),
+                "places": json.dumps(place_evidence, ensure_ascii=False),
+                "current_plan": json.dumps(current, ensure_ascii=False),
+                "revision_instruction": revision_instruction or "none",
+                "duration_days": request.duration_days,
+            },
+            token_limit=token_limit,
         )
     except LengthFinishReasonError:
+        emit("planner_agent", "fallback", detail="LengthFinishReasonError")
         fallback = _fallback_narrative(request, places, revision_instruction)
         fallback.warnings.append(
             "OpenAI trả lời vượt giới hạn độ dài; Planner đã dùng lịch trình fallback an toàn."
         )
         return fallback
-    return result.choices[0].message.parsed or _fallback_narrative(
+    return parsed or _fallback_narrative(
         request, places, revision_instruction
     )
 
@@ -393,21 +420,8 @@ def heuristic_revision(text: str) -> RevisionIntent:
 def parse_revision(text: str, current: TripRequest) -> RevisionIntent:
     if settings.use_mock_llm or not settings.primary_api_key:
         return heuristic_revision(text)
-    _record_live_call()
-    result = _client().chat.completions.parse(
-        model=settings.llm_model,
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "Classify a travel-plan revision. Patch only explicitly changed fields. "
-                    "Set preserve_flight/preserve_hotel from explicit keep instructions. "
-                    f"Current request: {current.model_dump_json()}"
-                ),
-            },
-            {"role": "user", "content": text},
-        ],
-        response_format=RevisionIntent,
-        max_completion_tokens=900,
+    parsed = _managed_parse(
+        "revision_router", RevisionIntent,
+        {"current_request": current.model_dump_json(), "user_message": text},
     )
-    return result.choices[0].message.parsed or heuristic_revision(text)
+    return parsed or heuristic_revision(text)
